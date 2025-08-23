@@ -1,36 +1,46 @@
 # Kokoro TTS Service - A High-Performance Text-to-Speech API
 
-This project provides a self-contained, high-performance FastAPI server for the Kokoro text-to-speech engine. It is designed for professional use, featuring a rich API that supports dynamic voice generation, multi-character dialogues, and custom voice blending. The service is self-configuring, automatically downloading the required model files from GitHub Releases on its first run.
+This project provides a self-contained, high-performance FastAPI server for the Kokoro text-to-speech engine. It is designed for professional use, featuring a rich API that supports dynamic voice generation, multi-character dialogues, and custom voice blending. The service is self-configuring, automatically downloading the required model files (~200MB) from GitHub Releases on its first run.
 
 This repository also includes a powerful command-line client for interaction, a comprehensive benchmark tool to optimize performance, and a rich Gradio UI for visual testing and demonstration.
 
-## Core Features
+## Setup
 
-* **Automatic Model Downloader:** No manual setup required. The server fetches the correct model files from GitHub Releases on first launch.
-* **High-Performance Streaming:** A `/synthesize-stream` endpoint uses `asyncio` to provide raw audio data with minimal latency, perfect for custom real-time applications.
-* **Universal WAV File Generation:** A `/synthesize-wav` endpoint generates a complete, universally playable `.wav` file, ideal for simple integrations or saving audio.
-* **Unified Dialogue Engine:** A single `/synthesize` endpoint can handle everything from single lines to complex, multi-character scripts with custom voice blends.
-* **Dynamic Voice Blending:** Create entirely new, unique voices on the fly by blending multiple existing voices with specific weights *within a dialogue script*.
-* **Full Conversation Control:** Orchestrate dialogues with custom delays between lines and control the speaking speed of each character independently.
-* **Complete Test Suite:** Includes a powerful command-line client (`client.py`), a comprehensive benchmark tool (`benchmark.py`), and a rich visual testing interface (`gradio_app.py`).
+### 1. Prerequisites
 
----
+* **Python 3.8 or newer:** This project was developed on Python 3.13 and is expected to be compatible with Python 3.8+.
+* **Git:** You will need Git to clone the repository.
 
-## Project Setup
+### 2. Clone the Repository
 
-1. Clone this repository.
-2. Navigate into the `Kokoro_TTS_Service` directory.
-3. Create a Python virtual environment:
+First, clone the repository to your local machine. This will download all the necessary code and configuration files.
+
+```bash
+git clone https://github.com/NemesisGuy/Kokoro_TTS_Service.git
+cd Kokoro_TTS_Service
+```
+
+### 3. Install Dependencies
+
+1. Create a Python virtual environment:
    ```bash
    python -m venv .venv
    ```
-4. Activate the environment:
-   - **Windows:** `.\.venv\Scripts\Activate.ps1`
-   - **macOS/Linux:** `source .venv/bin/activate`
-5. Install all required dependencies:
+2. Activate the environment:
+   - **Windows**:
+     ```powershell
+     .\.venv\Scripts\Activate.ps1
+     ```
+   - **macOS/Linux**:
+     ```bash
+     source .venv/bin/activate
+     ```
+3. Install all required dependencies:
    ```bash
    pip install -r requirements.txt
    ```
+
+**Note**: The first time the server runs, it will automatically download the necessary model files (~200MB) from GitHub Releases.
 
 ---
 
@@ -150,3 +160,15 @@ Each item in the `script` list must have either a `voice` or `blend_components`.
 ### 2. GET /voices
 - **Description**: Returns a sorted list of all available voice names.
 - **Success Response (200 OK)**: A JSON array of strings, e.g., `["af_alloy", "af_aoede", ...]`.
+
+---
+
+## Core Features
+
+* **Automatic Model Downloader:** No manual setup required. The server fetches the correct model files from GitHub Releases on first launch.
+* **High-Performance Streaming:** A `/synthesize-stream` endpoint uses `asyncio` to provide raw audio data with minimal latency, perfect for custom real-time applications.
+* **Universal WAV File Generation:** A `/synthesize-wav` endpoint generates a complete, universally playable `.wav` file, ideal for simple integrations or saving audio.
+* **Unified Dialogue Engine:** A single `/synthesize` endpoint can handle everything from single lines to complex, multi-character scripts with custom voice blends.
+* **Dynamic Voice Blending:** Create entirely new, unique voices on the fly by blending multiple existing voices with specific weights *within a dialogue script*.
+* **Full Conversation Control:** Orchestrate dialogues with custom delays between lines and control the speaking speed of each character independently.
+* **Complete Test Suite:** Includes a powerful command-line client (`client.py`), a comprehensive benchmark tool (`benchmark.py`), and a rich visual testing interface (`gradio_app.py`).
