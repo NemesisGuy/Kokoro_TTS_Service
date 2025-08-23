@@ -9,6 +9,7 @@ import uvicorn
 from typing import List, Optional
 import asyncio
 import requests
+from tqdm import tqdm # The robust downloader progress bar
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response, StreamingResponse
@@ -21,18 +22,34 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
 MODEL_FILE = "kokoro-v1.0.fp16.onnx"; VOICES_FILE = "voices-v1.0.bin"
 model_path = os.path.join(MODELS_DIR, MODEL_FILE); voices_path = os.path.join(MODELS_DIR, VOICES_FILE)
-MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.fp16.onnx"
-VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
-def download_file(url, dest):
-    print(f"Downloading {os.path.basename(dest)}...");
-    with requests.get(url, stream=True) as r: r.raise_for_status();
-    with open(dest, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=8192): f.write(chunk)
-    print("Download complete.")
-os.makedirs(MODELS_DIR, exist_ok=True)
-if not os.path.exists(model_path): download_file(MODEL_URL, model_path)
-if not os.path.exists(voices_path): download_file(VOICES_URL, voices_path)
 
+# --- The Unbreakable Downloader ---
+BASE_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/"
+MODEL_URL = BASE_URL + MODEL_FILE; VOICES_URL = BASE_URL + VOICES_FILE
+def download_file_robust(url: str, destination: str):
+    print(f"Downloading {os.path.basename(destination)}...")
+    try:
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            total_size = int(r.headers.get('content-length', 0))
+            with open(destination, 'wb') as f, tqdm(
+                total=total_size, unit='iB', unit_scale=True, desc=os.path.basename(destination)
+            ) as bar:
+                for chunk in r.iter_content(chunk_size=8192):
+                    size = f.write(chunk); bar.update(size)
+        if total_size != 0 and os.path.getsize(destination) != total_size:
+            print(f"\nFATAL ERROR: Download failed. File is incomplete."); sys.exit(1)
+        print("\nDownload verified and complete.")
+    except Exception as e:
+        print(f"\nFATAL ERROR: Failed to download model file. Error: {e}"); sys.exit(1)
+
+def download_models_if_missing():
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    if not os.path.exists(model_path): download_file_robust(MODEL_URL, model_path)
+    if not os.path.exists(voices_path): download_file_robust(VOICES_URL, voices_path)
+download_models_if_missing()
+
+# --- Load Models on Startup ---
 print("Loading model and tokenizer...")
 tokenizer = Tokenizer()
 kokoro = Kokoro(model_path, voices_path)
@@ -42,25 +59,18 @@ print("Model and voices loaded successfully. API is ready.")
 app = FastAPI(title="Kokoro TTS Service", version="FINAL-STABLE")
 
 # --- Pydantic Models ---
-class VoiceComponent(BaseModel):
-    voice: str; weight: float = Field(..., ge=0.0, le=1.0)
-
+class VoiceComponent(BaseModel): voice: str; weight: float = Field(..., ge=0.0, le=1.0)
 class DialogueLine(BaseModel):
-    text: str
-    voice: Optional[str] = None
-    blend_components: Optional[List[VoiceComponent]] = None
-    delay: Optional[float] = 0.0
-    speed: float = Field(1.0, ge=0.25, le=2.0)
+    text: str; voice: Optional[str] = None; blend_components: Optional[List[VoiceComponent]] = None
+    delay: Optional[float] = 0.0; speed: float = Field(1.0, ge=0.25, le=2.0)
     @model_validator(mode='before')
     def check_voice_or_blend(cls, values):
         if not (bool(values.get('voice')) ^ bool(values.get('blend_components'))):
             raise ValueError('Each line must have "voice" or "blend_components", not both.')
         return values
+class SynthesizeRequest(BaseModel): script: List[DialogueLine]
 
-class SynthesizeRequest(BaseModel):
-    script: List[DialogueLine]
-
-# --- Helper function for audio generation ---
+# --- Helper function for audio generation (English Only) ---
 async def generate_full_audio(script: List[DialogueLine]):
     all_samples = []
     for line in script:
@@ -87,7 +97,6 @@ async def generate_full_audio(script: List[DialogueLine]):
 # --- API Endpoints ---
 @app.get("/")
 def read_root(): return {"status": "Kokoro TTS API is running."}
-
 @app.get("/voices", response_model=List[str])
 async def get_voices(): return sorted(kokoro.get_voices())
 

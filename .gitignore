@@ -1,7 +1,12 @@
 # Ignore the Python virtual environment
+# This is specific to your machine and should never be shared.
 .venv/
 
 # Ignore Python cache files and folders
 __pycache__/
 api/__pycache__/
 *.pyc
+
+# Ignore the downloaded model files.
+# The api.py script will automatically download these for the user.
+models/
