@@ -1,0 +1,38 @@
+{
+  "script": [
+    {
+      "text": "This is a demonstration of a scripted conversation loaded from a JSON file.",
+      "voice": "am_eric",
+      "speed": 0.9
+    },
+    {
+      "text": "Each line can have its own voice, speed, and custom delays.",
+      "voice": "af_sky",
+      "delay": 0.5
+    },
+    {
+      "text": "The Red Lilist are peaceful and beloved creatures, they live among the people of Garen – in fact there is one in nearly every home – and they help us with our work, building has almost never been a problem thanks to their strength and due to their intelligence, they can perform jobs with almost the same skill as a Garenai. Their blue cousins however, are the incarnation of savagery in the scales, they kill mindlessly even one another, and are entirely unforgiving towards whatever beings dare exist in the same environment as they. They were the greatest bane on Garen, till it was discovered how to capture them. Then, they became our greatest weapon, capturing them and letting them loose on enemy nations. They were so dangerous, that after our ascension, we colonized an entire world and evacuated them there. It is now illegal to have one outside of their planet.",
+      "voice": "af_nova",
+      "delay": 0.5
+    },
+    {
+      "text": "This final line is spoken by a custom-blended character. This voice, is actually a live blend of 3 base voices! This TTS engin, is indeed, very versatile!",
+      "blend_components": [
+        {
+          "voice": "am_adam",
+          "weight": 0.3
+        },
+        {
+          "voice": "af_nova",
+          "weight": 0.4
+        },
+        {
+          "voice": "am_echo",
+          "weight": 0.3
+        }
+      ],
+      "delay": 1.0,
+      "speed": 1.1
+    }
+  ]
+}
