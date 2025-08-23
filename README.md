@@ -57,6 +57,8 @@ Interactive API documentation (Swagger UI) is available at `http://127.0.0.1:800
 
 ### 2. Gradio Showcase (`gradio_app.py`)
 
+![alt text](image.png)
+
 This provides a rich, tabbed web interface for testing all API features. The API server must be running first.
 ```bash
 python gradio_app.py
