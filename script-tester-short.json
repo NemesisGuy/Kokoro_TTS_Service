@@ -1,0 +1,14 @@
+{
+  "script": [
+    {"text": "This is a long sentence to test the synthesis speed on the server.", "voice": "am_eric", "speed": 1.0},
+    {"text": "Another long line with a different voice to increase processing time.", "voice": "af_nova", "speed": 0.9, "delay": 0.5},
+    {"text": "Blending voices now to make it more complex.", "blend_components": [{"voice": "am_adam", "weight": 0.6}, {"voice": "af_sky", "weight": 0.4}], "speed": 1.0},
+    {"text": "This is a long sentence to test the synthesis speed on the server.", "voice": "am_eric", "speed": 1.0},
+    {"text": "Another long line with a different voice to increase processing time.", "voice": "af_nova", "speed": 0.9, "delay": 0.5},
+    {"text": "Blending voices again to push the limits.", "blend_components": [{"voice": "am_adam", "weight": 0.5}, {"voice": "af_sky", "weight": 0.5}], "speed": 1.0},
+    {"text": "More text to ensure we stress the system.", "voice": "am_onyx", "speed": 1.0},
+    {"text": "Yet another line to make this script large.", "voice": "af_alloy", "speed": 1.0},
+    {"text": "Almost done, just a few more lines.", "voice": "am_eric", "speed": 1.0},
+    {"text": "Final line to complete the test.", "voice": "af_nova", "speed": 1.0}
+  ]
+}

@@ -1,0 +1,26 @@
+services:
+  tts-api:
+    image: nemesisguy/kokoro-tts-service:tts-api
+    container_name: kokoro_tts_api
+    volumes:
+      - tts-models:/app/models
+    ports:
+      - "8111:8000"
+    restart: always
+
+  gradio-ui:
+    image: nemesisguy/kokoro-tts-service:gradio-ui
+    container_name: kokoro_gradio_ui
+    ports:
+      - "8112:7860"
+    environment:
+      - API_URL=http://tts-api:8000
+    volumes:
+      - tts-models:/app/models
+    command: ["python", "gradio_app.py", "--server-name", "0.0.0.0"]
+    depends_on:
+      - tts-api
+    restart: always
+
+volumes:
+  tts-models:

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # --- Service 1: The API Server (The Engine) ---
+  tts-api:
+    build: .
+    container_name: kokoro_tts_api
+    volumes:
+      - tts-models:/app/models
+    ports:
+      # We now explicitly map the API port to be accessible from the Windows host
+      - "8111:8000"
+    restart: always
+
+  # --- Service 2: The Gradio Showcase (The User Interface) ---
+  gradio-ui:
+    build: .
+    container_name: kokoro_gradio_ui
+    ports:
+      # --- THIS IS THE CRITICAL FIX ---
+      # By specifying the IP as 0.0.0.0, we are telling Docker:
+      # "Listen on ALL network interfaces, including the one that connects to the Windows host."
+      # This breaks through the WSL network wall.
+      - "8112:7860"
+    # ------------------------------------
+    environment:
+      # This tells Gradio how to find the API inside the Docker network. This is correct.
+      - API_URL=http://tts-api:8000
+    volumes:
+      - tts-models:/app/models
+    command: ["python", "gradio_app.py", "--server-name", "0.0.0.0"]
+    depends_on:
+      - tts-api
+    restart: always
+
+volumes:
+  tts-models:

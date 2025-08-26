@@ -1,0 +1,17 @@
+# Ignore the local virtual environment
+.venv/
+
+# Ignore Python cache files
+__pycache__/
+api/__pycache__/
+*.pyc
+
+# Ignore Git files
+.git/
+.gitignore
+
+# Ignore local build artifacts from previous attempts
+build/
+dist/
+*.spec
+release/

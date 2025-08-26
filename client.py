@@ -1,4 +1,3 @@
-# client.py
 import requests
 import sounddevice as sd
 import numpy as np
@@ -6,58 +5,106 @@ import argparse
 import sys
 import json
 from scipy.io.wavfile import write as write_wav
+import time
 
-API_BASE_URL = "http://127.0.0.1:8111"
+API_BASE_URL = "http://localhost:8111"
+SAMPLE_RATE = 24000  # Matches API's default sample rate
+
+def get_available_voices():
+    try:
+        response = requests.get(f"{API_BASE_URL}/voices", timeout=10)
+        response.raise_for_status()
+        return sorted(response.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching voices: {e}")
+        return []
+
+def get_current_model():
+    try:
+        response = requests.get(f"{API_BASE_URL}/benchmark", timeout=120)
+        response.raise_for_status()
+        data = response.json()
+        recommendation = data.get("recommendation", {})
+        optimal_model = recommendation.get("best_balanced", {}).get("model_name", "Unknown")
+        return optimal_model
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching current model: {e}")
+        return "Unknown"
 
 def handle_synthesis_request(dialogue_script: list, output_file: str = None):
     if not dialogue_script:
         print("Error: Script is empty.")
         return
-        
+
     payload = {"script": dialogue_script}
-    
-    if output_file:
-        endpoint_url = f"{API_BASE_URL}/synthesize-wav"
-        print(f"\n--- Sending Request to WAV Endpoint ---")
-    else:
-        endpoint_url = f"{API_BASE_URL}/synthesize-stream"
-        print(f"\n--- Sending Request to Streaming Endpoint ---")
-    
+    print(f"\n--- Sending Request (Script Lines: {len(dialogue_script)}) ---")
     print(json.dumps(payload, indent=2))
     print("="*50 + "\n")
 
     try:
-        with requests.post(endpoint_url, json=payload, stream=True) as response:
-            response.raise_for_status()
-            
-            if output_file:
+        if output_file:
+            endpoint_url = f"{API_BASE_URL}/synthesize-wav"
+            print(f"Using WAV endpoint: {endpoint_url}")
+            start_time = time.time()
+            with requests.post(endpoint_url, json=payload, timeout=600) as response:
+                response.raise_for_status()
                 with open(output_file, 'wb') as f:
                     f.write(response.content)
-                print(f"Success! Audio saved to '{output_file}'")
-            else:
-                sample_rate = int(response.headers.get("X-Sample-Rate", 24000))
-                print("Playing audio stream...")
+                elapsed_time = time.time() - start_time
+                print(f"Success! Audio saved to '{output_file}' in {elapsed_time:.2f} seconds")
+        else:
+            endpoint_url = f"{API_BASE_URL}/synthesize-stream"
+            print(f"Using Streaming endpoint: {endpoint_url}")
+            print("Playing audio stream...")
+            buffer = bytearray()
+            with requests.post(endpoint_url, json=payload, stream=True, timeout=600) as response:
+                response.raise_for_status()
+                sample_rate = int(response.headers.get("X-Sample-Rate", SAMPLE_RATE))
                 with sd.OutputStream(samplerate=sample_rate, channels=1, dtype='float32') as stream:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
-                            stream.write(np.frombuffer(chunk, dtype=np.float32))
-                print("Playback finished.")
+                            buffer.extend(chunk)
+                            # Ensure buffer is a multiple of 4 bytes (float32)
+                            remainder = len(buffer) % 4
+                            if remainder == 0:
+                                audio_data = np.frombuffer(buffer, dtype=np.float32)
+                                if audio_data.size > 0:
+                                    stream.write(audio_data)
+                                buffer = bytearray()  # Clear buffer after writing
+                            # Keep incomplete chunks in buffer for next iteration
+            print("Playback finished.")
 
+    except requests.exceptions.Timeout:
+        print(f"Error: Request timed out after 600 seconds. Try splitting the script or using a faster model (e.g., INT8).")
     except requests.exceptions.RequestException as e:
-        print(f"\n--- AN ERROR OCCURRED: {e} ---")
+        print(f"Error: API request failed: {e}")
+        try:
+            print(f"Server response: {response.json()}")
+        except:
+            pass
+    except Exception as e:
+        print(f"Error during audio processing: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ultimate client for the Kokoro TTS API.")
     parser.add_argument('text', nargs='?', help="Text to speak.")
-    
-    # --- THIS IS THE FIX ---
     parser.add_argument('-f', '--file', help="Path to a JSON script file.")
-    # --- END OF FIX ---
-    
     parser.add_argument('-v', '--voice', default='af_sky', help="Default voice.")
     parser.add_argument('-i', '--interactive', action='store_true', help="Enter interactive mode.")
     parser.add_argument('-o', '--output', help="Path to save the output as a WAV file.")
     args = parser.parse_args()
+
+    # Fetch available voices
+    available_voices = get_available_voices()
+    if not available_voices:
+        print("Warning: Could not fetch voices from API. Using default voice.")
+    elif args.voice not in available_voices:
+        print(f"Warning: Voice '{args.voice}' not available. Available voices: {available_voices}")
+        args.voice = available_voices[0] if available_voices else 'af_sky'
+
+    # Check current model
+    current_model = get_current_model()
+    print(f"Current API model: {current_model}")
 
     if args.file:
         try:
@@ -66,17 +113,23 @@ if __name__ == "__main__":
                 script_to_send = json_data.get('script')
             if script_to_send:
                 handle_synthesis_request(script_to_send, args.output)
+            else:
+                print("Error: No 'script' key in JSON file.")
+                sys.exit(1)
         except Exception as e:
-            print(f"Error loading file: {e}"); sys.exit(1)
+            print(f"Error loading file: {e}")
+            sys.exit(1)
             
     elif args.interactive:
         current_voice = args.voice
         print(f"\n--- Interactive Mode (Voice: {current_voice}) ---")
-        print("Commands: /voice <name>, /save <file.wav>, quit")
+        print(f"Available voices: {available_voices}")
+        print("Commands: /voice <name>, /save <file.wav>, /model, quit")
         while True:
-            user_input = input(f"({current_voice}) > ");
-            if user_input.lower() in ['quit', 'exit']: break
-            
+            user_input = input(f"({current_voice}) > ")
+            if user_input.lower() in ['quit', 'exit']:
+                break
+                
             if user_input.strip().startswith('/'):
                 parts = user_input.strip().split()
                 command = parts[0].lower()
@@ -88,8 +141,18 @@ if __name__ == "__main__":
                     else:
                         print("Usage: /save <filename.wav>")
                 elif command == '/voice':
-                    if len(parts) > 1: current_voice = parts[1]; print(f"Voice set to {current_voice}")
-                    else: print("Usage: /voice <voice_name>")
+                    if len(parts) > 1:
+                        new_voice = parts[1]
+                        if new_voice in available_voices:
+                            current_voice = new_voice
+                            print(f"Voice set to {current_voice}")
+                        else:
+                            print(f"Voice '{new_voice}' not available. Available: {available_voices}")
+                    else:
+                        print("Usage: /voice <voice_name>")
+                elif command == '/model':
+                    current_model = get_current_model()
+                    print(f"Current API model: {current_model}")
                 else:
                     print("Unknown command.")
                 continue
@@ -102,6 +165,6 @@ if __name__ == "__main__":
         handle_synthesis_request([{"text": args.text, "voice": args.voice}], args.output)
     
     else:
-        handle_synthesis_request([{"text": "Hello, world!", "voice": "af_sky"}])
+        handle_synthesis_request([{"text": "Hello, world!", "voice": args.voice}])
 
     print("\n--- Client Finished ---")
